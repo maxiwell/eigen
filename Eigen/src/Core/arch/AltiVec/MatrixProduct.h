@@ -2478,19 +2478,19 @@ void gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, RowMajor, Con
   pack(blockA, lhs, depth, rows, stride, offset);
 }
 
-template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
-struct gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Conjugate, PanelMode>
-{
-  void operator()(float* blockA, const DataMapper& lhs, Index depth, Index rows, Index stride=0, Index offset=0);
-};
-
-template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
-void gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Conjugate, PanelMode>
-  ::operator()(float* blockA, const DataMapper& lhs, Index depth, Index rows, Index stride, Index offset)
-{
-  lhs_pack<float, Index, DataMapper, Packet4f, ColMajor, PanelMode> pack;
-  pack(blockA, lhs, depth, rows, stride, offset);
-}
+//template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
+//struct gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Conjugate, PanelMode>
+//{
+//  void operator()(float* blockA, const DataMapper& lhs, Index depth, Index rows, Index stride=0, Index offset=0);
+//};
+//
+//template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
+//void gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Conjugate, PanelMode>
+//  ::operator()(float* blockA, const DataMapper& lhs, Index depth, Index rows, Index stride, Index offset)
+//{
+//  lhs_pack<float, Index, DataMapper, Packet4f, ColMajor, PanelMode> pack;
+//  pack(blockA, lhs, depth, rows, stride, offset);
+//}
 template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
 struct gemm_pack_lhs<std::complex<float>, Index, DataMapper, Pack1, Pack2, Packet, RowMajor, Conjugate, PanelMode>
 {
@@ -2519,19 +2519,19 @@ void gemm_pack_lhs<std::complex<float>, Index, DataMapper, Pack1, Pack2, Packet,
   pack(blockA, lhs, depth, rows, stride, offset);
 }
 
-template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
-struct gemm_pack_rhs<float, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
-{
-  void operator()(float* blockB, const DataMapper& rhs, Index depth, Index cols, Index stride=0, Index offset=0);
-};
-
-template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
-void gemm_pack_rhs<float, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
-  ::operator()(float* blockB, const DataMapper& rhs, Index depth, Index cols, Index stride, Index offset)
-{
-  rhs_pack<float, Index, DataMapper, Packet4f, ColMajor, PanelMode> pack;
-  pack(blockB, rhs, depth, cols, stride, offset);
-}
+//template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
+//struct gemm_pack_rhs<float, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
+//{
+//  void operator()(float* blockB, const DataMapper& rhs, Index depth, Index cols, Index stride=0, Index offset=0);
+//};
+//
+//template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
+//void gemm_pack_rhs<float, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
+//  ::operator()(float* blockB, const DataMapper& rhs, Index depth, Index cols, Index stride, Index offset)
+//{
+//  rhs_pack<float, Index, DataMapper, Packet4f, ColMajor, PanelMode> pack;
+//  pack(blockB, rhs, depth, cols, stride, offset);
+//}
 
 template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
 struct gemm_pack_rhs<float, Index, DataMapper, nr, RowMajor, Conjugate, PanelMode>
@@ -2632,42 +2632,42 @@ void gemm_pack_rhs<std::complex<double>, Index, DataMapper, nr, RowMajor, Conjug
 }
 
 // ********* gebp specializations *********
-template<typename Index, typename DataMapper, int mr, int nr, bool ConjugateLhs, bool ConjugateRhs>
-struct gebp_kernel<float, float, Index, DataMapper, mr, nr, ConjugateLhs, ConjugateRhs>
-{
-  typedef typename quad_traits<float>::vectortype   Packet;
-  typedef typename quad_traits<float>::rhstype      RhsPacket;
-
-  void operator()(const DataMapper& res, const float* blockA, const float* blockB,
-                  Index rows, Index depth, Index cols, float alpha,
-                  Index strideA=-1, Index strideB=-1, Index offsetA=0, Index offsetB=0);
-};
-
-template<typename Index, typename DataMapper, int mr, int nr, bool ConjugateLhs, bool ConjugateRhs>
-void gebp_kernel<float, float, Index, DataMapper, mr, nr, ConjugateLhs, ConjugateRhs>
-  ::operator()(const DataMapper& res, const float* blockA, const float* blockB,
-               Index rows, Index depth, Index cols, float alpha,
-               Index strideA, Index strideB, Index offsetA, Index offsetB)
-  {
-    const Index accRows = quad_traits<float>::rows;
-    const Index accCols = quad_traits<float>::size;
-    void (*gemm_function)(const DataMapper&, const float*, const float*, Index, Index, Index, float, Index, Index, Index, Index);
-
-    #ifdef EIGEN_ALTIVEC_MMA_ONLY
-      //generate with MMA only
-      gemm_function = &Eigen::internal::gemmMMA<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
-    #elif defined(ALTIVEC_MMA_SUPPORT) && !defined(EIGEN_ALTIVEC_DISABLE_MMA)
-      if (__builtin_cpu_supports ("arch_3_1") && __builtin_cpu_supports ("mma")){
-        gemm_function = &Eigen::internal::gemmMMA<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
-      }
-      else{
-        gemm_function = &Eigen::internal::gemm<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
-      }
-    #else
-      gemm_function = &Eigen::internal::gemm<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
-    #endif
-      gemm_function(res, blockA, blockB, rows, depth, cols, alpha, strideA, strideB, offsetA, offsetB);
-  }
+//template<typename Index, typename DataMapper, int mr, int nr, bool ConjugateLhs, bool ConjugateRhs>
+//struct gebp_kernel<float, float, Index, DataMapper, mr, nr, ConjugateLhs, ConjugateRhs>
+//{
+//  typedef typename quad_traits<float>::vectortype   Packet;
+//  typedef typename quad_traits<float>::rhstype      RhsPacket;
+//
+//  void operator()(const DataMapper& res, const float* blockA, const float* blockB,
+//                  Index rows, Index depth, Index cols, float alpha,
+//                  Index strideA=-1, Index strideB=-1, Index offsetA=0, Index offsetB=0);
+//};
+//
+//template<typename Index, typename DataMapper, int mr, int nr, bool ConjugateLhs, bool ConjugateRhs>
+//void gebp_kernel<float, float, Index, DataMapper, mr, nr, ConjugateLhs, ConjugateRhs>
+//  ::operator()(const DataMapper& res, const float* blockA, const float* blockB,
+//               Index rows, Index depth, Index cols, float alpha,
+//               Index strideA, Index strideB, Index offsetA, Index offsetB)
+//  {
+//    const Index accRows = quad_traits<float>::rows;
+//    const Index accCols = quad_traits<float>::size;
+//    void (*gemm_function)(const DataMapper&, const float*, const float*, Index, Index, Index, float, Index, Index, Index, Index);
+//
+//    #ifdef EIGEN_ALTIVEC_MMA_ONLY
+//      //generate with MMA only
+//      gemm_function = &Eigen::internal::gemmMMA<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
+//    #elif defined(ALTIVEC_MMA_SUPPORT) && !defined(EIGEN_ALTIVEC_DISABLE_MMA)
+//      if (__builtin_cpu_supports ("arch_3_1") && __builtin_cpu_supports ("mma")){
+//        gemm_function = &Eigen::internal::gemmMMA<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
+//      }
+//      else{
+//        gemm_function = &Eigen::internal::gemm<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
+//      }
+//    #else
+//      gemm_function = &Eigen::internal::gemm<float, Index, Packet, RhsPacket, DataMapper, accRows, accCols>;
+//    #endif
+//      gemm_function(res, blockA, blockB, rows, depth, cols, alpha, strideA, strideB, offsetA, offsetB);
+//  }
 
 template<typename Index, typename DataMapper, int mr, int nr, bool ConjugateLhs, bool ConjugateRhs>
 struct gebp_kernel<std::complex<float>, std::complex<float>, Index, DataMapper, mr, nr, ConjugateLhs, ConjugateRhs>
