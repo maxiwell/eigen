@@ -509,6 +509,47 @@ class TensorContractionSubMapper {
   Index vert_offset() const { return m_vert_offset; }
   Index horiz_offset() const { return m_horiz_offset; }
 
+  //maxiwell
+  bool nonStandardPatches() const { return false; }
+
+  Scalar loadCoeffStandard(Index i) const { return 0; }
+
+  template <typename PacketT>
+  PacketT loadPacketStandard(Index i) const {
+    Scalar data[1];
+    return pload<PacketT>(data);
+  }
+
+  template <typename PacketT>
+  PacketT packetNoPadding(const Index depth, const Index baseIndex) const {
+    Scalar data[1];
+    return pload<PacketT>(data);
+  }
+
+  Index baseIndex(const Index row, const Index col) const { return 0; }
+
+  bool padRow(const Index row) const { return false; }
+
+  bool padCol(const Index col) const { return false; }
+
+  Index depthOffset() const { return 0; }
+
+  Index maxCol(const Index peeled_k) const { return 0; }
+
+  Index maxRow(const Index peeled_k, const Index col) const { return 0; }
+
+  Index maxDepth(const Index num_elements, const Index start_depth) const { return 0; }
+
+  Index patchDepth() const { return 0; }
+
+  Index patchRows() const { return 0; }
+
+  Index patchCols() const { return 0; }
+
+  Index colOffset() const { return 0; }
+
+  Index rowOffset() const { return 0; }
+
  private:
   ParentMapper m_base_mapper;
   const Index m_vert_offset;
