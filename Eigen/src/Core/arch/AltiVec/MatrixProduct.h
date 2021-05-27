@@ -34,6 +34,9 @@
   #include "MatrixProductMMA.h"
 #endif
 
+// Disable custom packing if defined
+#ifndef EIGEN_DISABLE_CUSTOM_PACK
+
 /**************************************************************************************************
  * TODO                                                                                           *
  * - Check StorageOrder on dhs_pack (the innermost second loop seems unvectorized when it could). *
@@ -2930,5 +2933,7 @@ void gebp_kernel<double, std::complex<double>, Index, DataMapper, mr, nr, Conjug
 } // end namespace internal
 
 } // end namespace Eigen
+
+#endif
 
 #endif // EIGEN_MATRIX_PRODUCT_ALTIVEC_H
