@@ -13,6 +13,9 @@
 
 #include "MatrixProductCommon.h"
 
+// Disable Custom packing if defined
+#ifndef EIGEN_DISABLE_CUSTOM_PACK
+
 // Since LLVM doesn't support dynamic dispatching, force either always MMA or VSX
 #if EIGEN_COMP_LLVM
 #if !defined(EIGEN_ALTIVEC_DISABLE_MMA) && !defined(EIGEN_ALTIVEC_MMA_ONLY)
@@ -2930,5 +2933,7 @@ void gebp_kernel<double, std::complex<double>, Index, DataMapper, mr, nr, Conjug
 } // end namespace internal
 
 } // end namespace Eigen
+
+#endif
 
 #endif // EIGEN_MATRIX_PRODUCT_ALTIVEC_H
