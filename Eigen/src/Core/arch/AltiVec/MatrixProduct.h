@@ -12,6 +12,8 @@
 #define EIGEN_MATRIX_PRODUCT_ALTIVEC_H
 
 #include "MatrixProductCommon.h"
+#include <sys/platform/ppc.h>
+
 
 // Since LLVM doesn't support dynamic dispatching, force either always MMA or VSX
 #if EIGEN_COMP_LLVM
@@ -2522,8 +2524,14 @@ template<typename Index, typename DataMapper, int nr, bool Conjugate, bool Panel
 void gemm_pack_rhs<float, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
   ::operator()(float* blockB, const DataMapper& rhs, Index depth, Index cols, Index stride, Index offset)
 {
+  static int gemm_pack_n = 0;
+  uint64_t freq = __ppc_get_timebase_freq();
+  uint64_t begin = __ppc_get_timebase();
   dhs_pack<float, Index, DataMapper, Packet4f, ColMajor, PanelMode, false> pack;
   pack(blockB, rhs, depth, cols, stride, offset);
+  uint64_t end = __ppc_get_timebase();
+  printf("gemm_pack_rhs %d: %lf\n", gemm_pack_n++, ((double)(end-begin))/freq);
+  fflush(stdout);
 }
 
 template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
