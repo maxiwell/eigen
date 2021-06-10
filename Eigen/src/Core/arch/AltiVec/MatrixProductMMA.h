@@ -283,6 +283,7 @@ asm("#gemm_MMA end");
 template<typename Scalar, typename Index, typename Packet, typename RhsPacket, typename DataMapper, const Index accRows, const Index accCols>
 void gemmMMA(const DataMapper& res, const Scalar* blockA, const Scalar* blockB, Index rows, Index depth, Index cols, Scalar alpha, Index strideA, Index strideB, Index offsetA, Index offsetB)
 {
+      printf("maxiwell gemmMMA\n");
       const Index remaining_rows = rows % accCols;
       const Index remaining_cols = cols % accRows;
 
