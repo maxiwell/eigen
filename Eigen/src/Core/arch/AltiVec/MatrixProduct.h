@@ -11,6 +11,16 @@
 #ifndef EIGEN_MATRIX_PRODUCT_ALTIVEC_H
 #define EIGEN_MATRIX_PRODUCT_ALTIVEC_H
 
+#if 0
+#include <cstdio>
+#include <iostream>
+#include <sys/platform/ppc.h>
+#endif
+
+#ifndef TF_USE_CUSTOM_EIGEN_PACK
+#define TF_USE_CUSTOM_EIGEN_PACK   1    // Once this define is moved, this should be ZERO (0)
+#endif
+
 #include "MatrixProductCommon.h"
 
 // Since LLVM doesn't support dynamic dispatching, force either always MMA or VSX
@@ -646,6 +656,78 @@ struct dhs_pack{
     }
   }
 };
+
+#if 0
+template<typename Scalar, typename Index, typename DataMapper, typename Packet, bool PanelMode>
+struct dhs_pack<Scalar, Index, DataMapper, Packet, ColMajor, PanelMode, false>
+{
+  EIGEN_STRONG_INLINE void operator()(Scalar* blockA, const DataMapper& lhs, Index depth, Index rows, Index stride, Index offset)
+  {
+    uint64_t start, end;
+    start = __ppc_get_timebase();
+    const Index vectorSize = quad_traits<Scalar>::vectorsize;
+    Index ri = 0, j = 0;
+
+    for(; j + vectorSize <= rows; j+=vectorSize)
+    {
+      typedef typename DataMapper::LinearMapper LinearMapper;
+      LinearMapper lm0 = lhs.getLinearMapper(0, j+0);
+      LinearMapper lm1 = lhs.getLinearMapper(0, j+1);
+      LinearMapper lm2 = lhs.getLinearMapper(0, j+2);
+      LinearMapper lm3 = lhs.getLinearMapper(0, j+3);
+      Index i = 0;
+
+      if(PanelMode) ri += vectorSize*offset;
+
+      for(; i + vectorSize <= depth; i+=vectorSize)
+      {
+        PacketBlock<Packet,4> block;
+
+        block.packet[0] = lm0.template loadPacket<Packet>(i);
+        block.packet[1] = lm1.template loadPacket<Packet>(i);
+        block.packet[2] = lm2.template loadPacket<Packet>(i);
+        block.packet[3] = lm3.template loadPacket<Packet>(i);
+
+        ptranspose(block);
+
+        storeBlock<Scalar, Packet, Index>(blockA + ri, block);
+
+        ri += 4*vectorSize;
+      }
+      for(; i < depth; i++)
+      {
+        blockA[ri+0] = lm0(i);
+        blockA[ri+1] = lm1(i);
+        blockA[ri+2] = lm2(i);
+        blockA[ri+3] = lm3(i);
+
+        ri += vectorSize;
+      }
+
+      if(PanelMode) ri += vectorSize*(stride - offset - depth);
+    }
+
+    if (j < rows)
+    {
+      if(PanelMode) ri += offset*(rows - j);
+
+      for(Index i = 0; i < depth; i++)
+      {
+        Index k = j;
+        for(; k < rows; k++)
+        {
+          blockA[ri] = lhs(i, k);
+          ri += 1;
+        }
+      }
+    }
+    end = __ppc_get_timebase();
+    printf("pack time = %16ld depth %ld rows %ld\n", end - start, depth, rows);
+static int packcnt = 0;
+if (++packcnt == 100) exit(1);
+  }
+};
+#endif
 
 // General template for lhs packing, float64 specialization.
 template<typename Index, typename DataMapper, int StorageOrder, bool PanelMode>
@@ -2395,6 +2477,7 @@ EIGEN_STRONG_INLINE void gemm_complex(const DataMapper& res, const LhsScalar* bl
 /************************************
  * ppc64le template specializations *
  * **********************************/
+#if !TF_USE_CUSTOM_EIGEN_PACK
 template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
 struct gemm_pack_lhs<double, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Conjugate, PanelMode>
 {
@@ -2408,6 +2491,7 @@ void gemm_pack_lhs<double, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Co
     dhs_pack<double, Index, DataMapper, Packet2d, ColMajor, PanelMode, true> pack;
     pack(blockA, lhs, depth, rows, stride, offset);
 }
+#endif
 
 template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
 struct gemm_pack_lhs<double, Index, DataMapper, Pack1, Pack2, Packet, RowMajor, Conjugate, PanelMode>
@@ -2423,6 +2507,7 @@ void gemm_pack_lhs<double, Index, DataMapper, Pack1, Pack2, Packet, RowMajor, Co
     pack(blockA, lhs, depth, rows, stride, offset);
 }
 
+#if !TF_USE_CUSTOM_EIGEN_PACK
 template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
 struct gemm_pack_rhs<double, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
 {
@@ -2436,6 +2521,7 @@ void gemm_pack_rhs<double, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode
   dhs_pack<double, Index, DataMapper, Packet2d, ColMajor, PanelMode, false> pack;
   pack(blockB, rhs, depth, cols, stride, offset);
 }
+#endif
 
 template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
 struct gemm_pack_rhs<double, Index, DataMapper, nr, RowMajor, Conjugate, PanelMode>
@@ -2447,6 +2533,7 @@ template<typename Index, typename DataMapper, int nr, bool Conjugate, bool Panel
 void gemm_pack_rhs<double, Index, DataMapper, nr, RowMajor, Conjugate, PanelMode>
   ::operator()(double* blockB, const DataMapper& rhs, Index depth, Index cols, Index stride, Index offset)
 {
+  printf("eigen gemm_pack_rhs double\n");
   dhs_pack<double, Index, DataMapper, Packet2d, RowMajor, PanelMode, false> pack;
   pack(blockB, rhs, depth, cols, stride, offset);
 }
@@ -2465,6 +2552,7 @@ void gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, RowMajor, Con
   pack(blockA, lhs, depth, rows, stride, offset);
 }
 
+#if !TF_USE_CUSTOM_EIGEN_PACK
 template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
 struct gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Conjugate, PanelMode>
 {
@@ -2478,6 +2566,8 @@ void gemm_pack_lhs<float, Index, DataMapper, Pack1, Pack2, Packet, ColMajor, Con
   dhs_pack<float, Index, DataMapper, Packet4f, ColMajor, PanelMode, true> pack;
   pack(blockA, lhs, depth, rows, stride, offset);
 }
+#endif
+
 template<typename Index, typename DataMapper, int Pack1, int Pack2, typename Packet, bool Conjugate, bool PanelMode>
 struct gemm_pack_lhs<std::complex<float>, Index, DataMapper, Pack1, Pack2, Packet, RowMajor, Conjugate, PanelMode>
 {
@@ -2506,6 +2596,7 @@ void gemm_pack_lhs<std::complex<float>, Index, DataMapper, Pack1, Pack2, Packet,
   pack(blockA, lhs, depth, rows, stride, offset);
 }
 
+#if !TF_USE_CUSTOM_EIGEN_PACK
 template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
 struct gemm_pack_rhs<float, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
 {
@@ -2519,6 +2610,7 @@ void gemm_pack_rhs<float, Index, DataMapper, nr, ColMajor, Conjugate, PanelMode>
   dhs_pack<float, Index, DataMapper, Packet4f, ColMajor, PanelMode, false> pack;
   pack(blockB, rhs, depth, cols, stride, offset);
 }
+#endif
 
 template<typename Index, typename DataMapper, int nr, bool Conjugate, bool PanelMode>
 struct gemm_pack_rhs<float, Index, DataMapper, nr, RowMajor, Conjugate, PanelMode>
@@ -2530,6 +2622,7 @@ template<typename Index, typename DataMapper, int nr, bool Conjugate, bool Panel
 void gemm_pack_rhs<float, Index, DataMapper, nr, RowMajor, Conjugate, PanelMode>
   ::operator()(float* blockB, const DataMapper& rhs, Index depth, Index cols, Index stride, Index offset)
 {
+  printf("eigen gemm_pack_rhs float\n");
   dhs_pack<float, Index, DataMapper, Packet4f, RowMajor, PanelMode, false> pack;
   pack(blockB, rhs, depth, cols, stride, offset);
 }
@@ -2619,6 +2712,7 @@ void gemm_pack_rhs<std::complex<double>, Index, DataMapper, nr, RowMajor, Conjug
 }
 
 // ********* gebp specializations *********
+#if !TF_USE_CUSTOM_EIGEN_PACK
 template<typename Index, typename DataMapper, int mr, int nr, bool ConjugateLhs, bool ConjugateRhs>
 struct gebp_kernel<float, float, Index, DataMapper, mr, nr, ConjugateLhs, ConjugateRhs>
 {
@@ -2921,6 +3015,7 @@ void gebp_kernel<double, std::complex<double>, Index, DataMapper, mr, nr, Conjug
      #endif
        gemm_function(res, blockA, blockB, rows, depth, cols, alpha, strideA, strideB, offsetA, offsetB);
   }
+#endif
 } // end namespace internal
 
 } // end namespace Eigen
