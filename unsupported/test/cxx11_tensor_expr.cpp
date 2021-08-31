@@ -13,6 +13,8 @@
 
 #include <Eigen/CXX11/Tensor>
 
+#undef vec_all_nan
+
 using Eigen::Tensor;
 using Eigen::RowMajor;
 
